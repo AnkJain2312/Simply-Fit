@@ -474,6 +474,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.clear();
+        editor.putString(SAVED_EMAIL, user.getEmail());
+        editor.putString(SAVED_NAME, user.getName());
+        editor.putString(SAVED_SURNAME, user.getSurname());
+        editor.putString(SAVED_AGE, user.getAge());
+        editor.putString(SAVED_WEIGHT, user.getWeight());
+        editor.putString(SAVED_HEIGHT, user.getHeight());
+        editor.putInt(SAVED_STEP_GOAL, user.getStepGoal());
+        editor.putString(SAVED_BITMAP, encodeImage());
         editor.apply();
     }
 
@@ -495,6 +503,58 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         return null;
     }
+
+    private void decodeImage() {
+        String code = user.getEncodedProfilePhoto();
+        if (code == null || code.isEmpty()) return;
+        byte[] decodedString = Base64.decode(user.getEncodedProfilePhoto(), Base64.DEFAULT);
+        Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+        profile_image_bitmap = decodedByte;
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState);
+        saveUserDataIntoLocalStorage();
+        saveUserDataIntoFirebase();
+        savedInstanceState.putInt(FRAGMENT_NUMBER, fragmentPosition);
+    }
+
+    private void buildPhotoIntent() {
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)) return;
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        // Ensure that there's a camera activity to handle the intent
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+            }
+            // Continue only if the File was successfully created
+            if (photoFile != null) {
+                Uri photoURI = FileProvider.getUriForFile(this,
+                        "com.example.android.fileprovider",
+                        photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                startActivityForResult(takePictureIntent, REQUEST_TAKE_PHOTO);
+            }
+        }
+    }
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        @SuppressLint("SimpleDateFormat")
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPG_" + timeStamp + "_";
+        //storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+
         // Save a file: path for use with ACTION_VIEW intents
         mCurrentPhotoPath = image.getAbsolutePath();
         return image;
@@ -555,7 +615,40 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void invertImage() {
-        
+        int A, R, G, B;
+        int pixelColor;
+        int height = profile_image_bitmap.getHeight();
+        int width = profile_image_bitmap.getWidth();
+
+        Bitmap finalImage = Bitmap.createBitmap(width, height, profile_image_bitmap.getConfig());
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                pixelColor = profile_image_bitmap.getPixel(x, y);
+                A = Color.alpha(pixelColor);
+                R = 255 - Color.red(pixelColor);
+                G = 255 - Color.blue(pixelColor);
+                B = 255 - Color.green(pixelColor);
+                finalImage.setPixel(x, y, Color.argb(A, R, G, B));
+            }
+        }
+        profile_image_bitmap = finalImage;
+        broadcastBitmapChange();
+    }
+
+    private void getGrayscale(){
+        Bitmap src = profile_image_bitmap;
+        //Custom color matrix to convert to GrayScale
+        float[] matrix = new float[]{
+                0.3f, 0.59f, 0.11f, 0, 0,
+                0.3f, 0.59f, 0.11f, 0, 0,
+                0.3f, 0.59f, 0.11f, 0, 0,
+                0, 0, 0, 1, 0,};
+
+        Bitmap dest = Bitmap.createBitmap(
+                src.getWidth(),
+                src.getHeight(),
+                src.getConfig());
 
         Canvas canvas = new Canvas(dest);
         Paint paint = new Paint();
@@ -576,6 +669,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         for (File file : fileList) {
             paths.add(file.getAbsolutePath());
         }
+        Intent gallery_intent = new Intent(MainActivity.this, GalleryActivity.class);
+        gallery_intent.putStringArrayListExtra(GalleryActivity.IMAGE_PATHS, paths);
+        startActivityForResult(gallery_intent, REQUEST_PICK_PHOTO);
+    }
 
     // Array of supported extensions
     static final String[] EXTENSIONS = new String[]{
