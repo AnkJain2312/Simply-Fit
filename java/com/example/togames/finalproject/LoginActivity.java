@@ -125,7 +125,25 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
                 return;
             }
 
-  
+            // Sign in to Firebase Authentication
+            button_login.setEnabled(false);
+            auth.signInWithEmailAndPassword(email, password).
+                    addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                        @Override
+                        public void onComplete(@NonNull Task<AuthResult> task) {
+                            button_login.setEnabled(true);
+                            if (task.isSuccessful()) {
+                                // If login is successful, go to MainActivity
+                                Intent intent_login = new Intent(LoginActivity.this, MainActivity.class);
+                                startActivity(intent_login);
+                                finish();
+                            } else {
+                                // If login is not successful, show an error message
+                                Toast.makeText(LoginActivity.this, R.string.login_failed,
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
         } else if (id == R.id.button_register) { // Register button is clicked
             // Check if all of the required fields are filled,
             // and check if passwords match.
@@ -137,7 +155,15 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
             String age = editText_age.getText().toString();
             String weight = editText_weight.getText().toString();
             String height = editText_height.getText().toString();
-           
+            if (email.isEmpty() || password.isEmpty() || name.isEmpty() || age.isEmpty() ||
+                    weight.isEmpty() || height.isEmpty()) {
+                Toast.makeText(LoginActivity.this, "All fields must be filled",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            } else if (!password.equals(password2)) {
+                Toast.makeText(LoginActivity.this, "Passwords does not match",
+                        Toast.LENGTH_SHORT).show();
+                return;
             }
 
             // Register to Firebase Authentication and save data into database
