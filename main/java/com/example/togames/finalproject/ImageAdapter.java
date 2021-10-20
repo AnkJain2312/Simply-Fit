@@ -41,6 +41,19 @@ public class ImageAdapter extends BaseAdapter {
         return 0;
     }
 
+    // create a new ImageView for each item referenced by the Adapter
+    public View getView(int position, View convertView, ViewGroup parent) {
+        ImageView imageView;
+        if (convertView == null) {
+            // if it's not recycled, initialize some attributes
+            imageView = new ImageView(mContext);
+            imageView.setLayoutParams(new ViewGroup.LayoutParams(columnWidth, columnWidth));
+            //imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            imageView.setPadding(PADDING, PADDING, PADDING, PADDING);
+        } else {
+            imageView = (ImageView) convertView;
+        }
+
         Picasso.with(mContext).load("file://" + paths.get(position)).config(Bitmap.Config.RGB_565)
                 .fit().centerCrop()
                 .into(imageView);
