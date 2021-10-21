@@ -34,7 +34,22 @@ public class DirectionsJSONParser {
                 for (int j = 0; j < jLegs.length(); j++) {
                     jSteps = ((JSONObject) jLegs.get(j)).getJSONArray("steps");
 
-                  }
+                    // Traverse all steps
+                    for (int k = 0; k < jSteps.length(); k++) {
+                        String polyline = "";
+                        polyline = (String) ((JSONObject) ((JSONObject) jSteps.get(k)).get("polyline")).get("points");
+                        List list = decodePoly(polyline);
+
+                        // Traverse all points
+                        for (int l = 0; l < list.size(); l++) {
+                            HashMap<String, String> hm = new HashMap<String, String>();
+                            hm.put("lat", Double.toString(((LatLng) list.get(l)).latitude));
+                            hm.put("lng", Double.toString(((LatLng) list.get(l)).longitude));
+                            path.add(hm);
+                        }
+                    }
+                    routes.add(path);
+                }
             }
 
         } catch (JSONException e) {
