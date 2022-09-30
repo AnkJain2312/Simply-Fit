@@ -13,6 +13,14 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.support.annotation.ColorInt;
+import android.support.annotation.NonNull;
+import android.support.design.widget.NavigationView;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentStatePagerAdapter;
 import android.support.v4.content.FileProvider;
@@ -74,6 +82,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TextView textView_name, textView_nav_name;
     private ImageView imageView_user, imageView_weight, imageView_steps, imageView_heart;
     private ImageButton imageButton_settings;
+    private ImageView[] bottomViews;
+    private CircleImageView profile_image;
+    private DrawerLayout drawerLayout;
+    private User user;
+    private int fragmentPosition;
     private FirebaseDatabase database;
     private Fragment[] fragments;
     private ViewPager mPager;
@@ -117,6 +130,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         imageButton_settings.setOnClickListener(this);
         imageView_user.setOnClickListener(this);
+        imageView_weight.setOnClickListener(this);
+        imageView_steps.setOnClickListener(this);
+        imageView_heart.setOnClickListener(this);
         profile_image.setOnClickListener(this);
 
         // Store the bottom bar views in an array
@@ -380,6 +396,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 buttonCrop.setEnabled(false);
                 buttonBlur.setEnabled(false);
                 buttonGrey.setEnabled(false);
+                buttonOK.setEnabled(false);
+                blurImage();
+                buttonCrop.setEnabled(true);
+                buttonBlur.setEnabled(true);
                 buttonGrey.setEnabled(true);
                 buttonOK.setEnabled(true);
             }
@@ -456,6 +476,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         editor.clear();
         editor.putString(SAVED_EMAIL, user.getEmail());
         editor.putString(SAVED_NAME, user.getName());
+        editor.putString(SAVED_SURNAME, user.getSurname());
+        editor.putString(SAVED_AGE, user.getAge());
+        editor.putString(SAVED_WEIGHT, user.getWeight());
         editor.putString(SAVED_HEIGHT, user.getHeight());
         editor.putInt(SAVED_STEP_GOAL, user.getStepGoal());
         editor.putString(SAVED_BITMAP, encodeImage());
@@ -504,6 +527,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
             // Create the File where the photo should go
             File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+            }
             // Continue only if the File was successfully created
             if (photoFile != null) {
                 Uri photoURI = FileProvider.getUriForFile(this,
@@ -520,6 +548,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         @SuppressLint("SimpleDateFormat")
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "JPG_" + timeStamp + "_";
+        //storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+        mCurrentPhotoPath = image.getAbsolutePath();
         return image;
     }
 
@@ -558,6 +595,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void cropImage() {
         try {
             Intent cropIntent = new Intent("com.android.camera.action.CROP");
+            cropIntent.setDataAndType(contentUri, "image/*");
+            cropIntent.putExtra("crop", "true");
+            cropIntent.putExtra("outputX", 300);
+            cropIntent.putExtra("outputY", 300);
             cropIntent.putExtra("aspectX", 1);
             cropIntent.putExtra("aspectY", 1);
             cropIntent.putExtra("scaleUpIfNeeded", true);
@@ -609,6 +650,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 src.getHeight(),
                 src.getConfig());
 
+        Canvas canvas = new Canvas(dest);
+        Paint paint = new Paint();
+        ColorMatrixColorFilter filter = new ColorMatrixColorFilter(matrix);
+        paint.setColorFilter(filter);
+        canvas.drawBitmap(src, 0, 0, paint);
+
         profile_image_bitmap = dest;
         broadcastBitmapChange();
     }
@@ -651,6 +698,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void buildSettingsIntent() {
+        Intent settingsIntent = new Intent(MainActivity.this, SettingsActivity.class);
+        startActivityForResult(settingsIntent, REQUEST_THEME);
     }
 
     private void buildLogoutIntent() {
